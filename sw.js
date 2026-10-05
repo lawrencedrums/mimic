@@ -1,5 +1,5 @@
 // Bump when any cached file changes so clients pick up the new version.
-const CACHE = "mimic-v1";
+const CACHE = "mimic-v2";
 
 // Relative to the worker's location, so the app works from a GitHub Pages
 // project path (/mimic/) as well as from a domain root.
@@ -45,5 +45,16 @@ self.addEventListener("fetch", e => {
       })
       .catch(() => caches.match(req, { ignoreSearch: true })
         .then(hit => hit || (req.mode === "navigate" ? caches.match("index.html") : Response.error())))
+  );
+});
+
+// Bring the timer back to the front when a notification is clicked
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+      const open = list.find(c => c.url.startsWith(self.registration.scope));
+      return open ? open.focus() : self.clients.openWindow(self.registration.scope);
+    })
   );
 });

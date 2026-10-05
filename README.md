@@ -12,6 +12,7 @@ day over and over. Focus, break, repeat. Live, die, repeat.
 - Optional auto-start for breaks and pomodoros
 - Tasks with pomodoro estimates, notes and an estimated finish time
 - Alarm sounds (Chime, Bell, Digital, Kitchen) with volume and repeat
+- Browser notifications when a round ends
 - Works offline and can be installed to your home screen or dock
 
 ## Live Demo
