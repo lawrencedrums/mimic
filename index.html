@@ -75,6 +75,19 @@
     <div class="row"><span>Auto-start pomodoros</span><label class="switch"><input type="checkbox" id="setAutoFocus" aria-label="Auto-start pomodoros"><span></span></label></div>
     <div class="row"><span>Auto-check finished tasks</span><label class="switch"><input type="checkbox" id="setAutoCheck" aria-label="Auto-check finished tasks"><span></span></label></div>
     <div class="row"><span>Long break every</span><span><input class="num" type="number" min="1" max="12" id="setInterval" aria-label="Pomodoros before a long break"> pomos</span></div>
+    <h3 class="gap">Alarm</h3>
+    <div class="row"><label for="setSound">Sound</label><span class="pair">
+      <select class="num select" id="setSound">
+        <option value="chime">Chime</option>
+        <option value="bell">Bell</option>
+        <option value="digital">Digital</option>
+        <option value="kitchen">Kitchen</option>
+        <option value="none">None</option>
+      </select>
+      <button class="btn plain" id="testSound" type="button">Test</button>
+    </span></div>
+    <div class="row"><label for="setVolume">Volume</label><input class="range" type="range" min="0" max="100" step="5" id="setVolume"></div>
+    <div class="row"><label for="setRepeat">Repeat</label><span><input class="num" type="number" min="1" max="10" id="setRepeat"> times</span></div>
   </div>
   <div class="sheet-foot"><button class="btn dark" id="saveSettings">Save</button></div>
 </dialog>

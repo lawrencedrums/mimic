@@ -5,7 +5,7 @@
     set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
   };
 
-  const defaults = { focus:25, short:5, long:15, interval:4, autoBreak:false, autoFocus:false, autoCheck:false };
+  const defaults = { focus:25, short:5, long:15, interval:4, autoBreak:false, autoFocus:false, autoCheck:false, sound:"chime", volume:70, repeat:1 };
   let settings = Object.assign({}, defaults, store.get("ft-settings", {}));
   let tasks = store.get("ft-tasks", []);
   let activeId = store.get("ft-active", null);
@@ -96,19 +96,37 @@
 
   /* sounds */
   let actx;
-  function tone(freq, at, dur, vol){
+  function tone(freq, at, dur, vol, type){
     try{
       actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      // iOS suspends the context when the app is backgrounded
+      if (actx.state === "suspended") actx.resume();
       const o = actx.createOscillator(), g = actx.createGain();
-      o.type = "sine"; o.frequency.value = freq;
-      g.gain.setValueAtTime(vol, actx.currentTime + at);
+      o.type = type || "sine"; o.frequency.value = freq;
+      g.gain.setValueAtTime(Math.max(vol, 0.0001), actx.currentTime + at);
       g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + at + dur);
       o.connect(g).connect(actx.destination);
       o.start(actx.currentTime + at); o.stop(actx.currentTime + at + dur);
     }catch(e){}
   }
   function click(){ tone(900, 0, .06, .08); }
-  function chime(){ [0,.35,.7].forEach((t,i) => tone([880,1100,1320][i], t, .6, .25)); }
+
+  // Each alarm is synthesised so the app ships no audio files. `play`
+  // schedules one ring starting at `at` and `len` is how long it lasts,
+  // which is used to space out repeats.
+  const alarms = {
+    chime:   { len:1.4, play:(at,v) => [0,.35,.7].forEach((t,i) => tone([880,1100,1320][i], at+t, .6, .25*v)) },
+    bell:    { len:2.6, play:(at,v) => [[1,.3],[2,.12],[2.76,.08],[5.4,.04]].forEach(([r,g]) => tone(587*r, at, 2.4/Math.sqrt(r), g*v)) },
+    digital: { len:1.2, play:(at,v) => [0,.15,.3,.45].forEach(t => tone(2000, at+t, .09, .08*v, "square")) },
+    kitchen: { len:1.6, play:(at,v) => { for (let i = 0; i < 16; i++) tone(2600, at+i*.07, .05, .07*v, "triangle"); } },
+    none:    { len:0, play:() => {} }
+  };
+  function alarm(name, times){
+    const a = alarms[name] || alarms.chime;
+    const v = settings.volume / 100;
+    for (let i = 0; i < times; i++) a.play(i * (a.len + .3), v);
+  }
+  function chime(){ alarm(settings.sound, settings.repeat); }
 
   /* ---------- tasks ---------- */
   const uid = () => Math.random().toString(36).slice(2,10);
@@ -256,17 +274,29 @@
     $("#setFocus").value = settings.focus; $("#setShort").value = settings.short; $("#setLong").value = settings.long;
     $("#setInterval").value = settings.interval;
     $("#setAutoBreak").checked = settings.autoBreak; $("#setAutoFocus").checked = settings.autoFocus; $("#setAutoCheck").checked = settings.autoCheck;
+    $("#setSound").value = settings.sound; $("#setVolume").value = settings.volume; $("#setRepeat").value = settings.repeat;
     dlg.showModal();
   };
   $("#closeSettings").onclick = () => dlg.close();
   dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+  // Preview with the unsaved values so you can audition before saving
+  const preview = () => {
+    const saved = settings.volume;
+    settings.volume = parseInt($("#setVolume").value) || 0;
+    alarm($("#setSound").value, 1);
+    settings.volume = saved;
+  };
+  $("#setSound").onchange = preview;
+  $("#setVolume").onchange = preview;
+  $("#testSound").onclick = preview;
   $("#saveSettings").onclick = () => {
     const n = (id, lo, hi, d) => Math.min(hi, Math.max(lo, parseInt($(id).value) || d));
     const old = settings[mode];
     settings = {
       focus:n("#setFocus",1,180,25), short:n("#setShort",1,60,5), long:n("#setLong",1,120,15),
       interval:n("#setInterval",1,12,4),
-      autoBreak:$("#setAutoBreak").checked, autoFocus:$("#setAutoFocus").checked, autoCheck:$("#setAutoCheck").checked
+      autoBreak:$("#setAutoBreak").checked, autoFocus:$("#setAutoFocus").checked, autoCheck:$("#setAutoCheck").checked,
+      sound:$("#setSound").value, volume:Math.min(100, Math.max(0, parseInt($("#setVolume").value) || 0)), repeat:n("#setRepeat",1,10,1)
     };
     store.set("ft-settings", settings);
     dlg.close();
