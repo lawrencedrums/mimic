@@ -12,7 +12,7 @@
 
   let mode = "focus", round = 1, focusDone = 0;
   let remaining = settings.focus * 60, total = remaining;
-  let running = false, endAt = 0, tick = null;
+  let running = false, endAt = 0, tick = null, wake = null;
   let editingId = null; // null none, "new" new task, or task id
 
   const labels = { focus:"Time to focus!", short:"Time for a break!", long:"Time for a long break!" };
@@ -47,12 +47,16 @@
     running = true;
     endAt = Date.now() + remaining * 1000;
     tick = setInterval(step, 250);
+    // Hidden tabs throttle repeating timers to as little as once a minute,
+    // but a single timeout still fires on time, so the round ends promptly.
+    wake = setTimeout(step, remaining * 1000);
     click();
     renderTimer();
   }
   function stop(){
     running = false;
     clearInterval(tick); tick = null;
+    clearTimeout(wake); wake = null;
     renderTimer();
   }
   function step(){
