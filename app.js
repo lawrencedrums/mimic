@@ -5,7 +5,7 @@
     set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
   };
 
-  const defaults = { focus:25, short:5, long:15, interval:4, autoBreak:false, autoFocus:false, autoCheck:false, sound:"chime", volume:70, repeat:1, notify:false };
+  const defaults = { focus:25, short:5, long:15, interval:4, autoBreak:false, autoFocus:false, autoCheck:false, sound:"chime", volume:70, repeat:1, notify:false, awake:true };
   let settings = Object.assign({}, defaults, store.get("ft-settings", {}));
   let tasks = store.get("ft-tasks", []);
   let activeId = store.get("ft-active", null);
@@ -42,6 +42,24 @@
     if (autostart) start();
   }
 
+  // Screen wake lock, held only while the timer runs. Browsers drop it
+  // whenever the tab is hidden, so it is re-requested on return. The
+  // request promise is stored so overlapping calls can't take two locks.
+  const canWake = "wakeLock" in navigator;
+  let wakeLock = null;
+  function holdAwake(){
+    if (!canWake || !settings.awake || !running || wakeLock || document.hidden) return;
+    const req = wakeLock = navigator.wakeLock.request("screen");
+    req.then(l => l.addEventListener("release", () => { if (wakeLock === req) wakeLock = null; }))
+      .catch(() => { if (wakeLock === req) wakeLock = null; });
+  }
+  function releaseAwake(){
+    const req = wakeLock;
+    wakeLock = null;
+    if (req) req.then(l => l.release()).catch(() => {});
+  }
+  document.addEventListener("visibilitychange", holdAwake);
+
   function start(){
     if (running) return;
     running = true;
@@ -50,6 +68,7 @@
     // Hidden tabs throttle repeating timers to as little as once a minute,
     // but a single timeout still fires on time, so the round ends promptly.
     wake = setTimeout(step, remaining * 1000);
+    holdAwake();
     click();
     renderTimer();
   }
@@ -57,6 +76,7 @@
     running = false;
     clearInterval(tick); tick = null;
     clearTimeout(wake); wake = null;
+    releaseAwake();
     renderTimer();
   }
   function step(){
@@ -298,6 +318,7 @@
     $("#setAutoBreak").checked = settings.autoBreak; $("#setAutoFocus").checked = settings.autoFocus; $("#setAutoCheck").checked = settings.autoCheck;
     $("#setNotify").checked = settings.notify && canNotify && Notification.permission === "granted";
     $("#notifyHint").hidden = true;
+    $("#setAwake").checked = settings.awake;
     $("#setSound").value = settings.sound; $("#setVolume").value = settings.volume; $("#setRepeat").value = settings.repeat;
     dlg.showModal();
   };
@@ -314,6 +335,7 @@
   $("#setVolume").onchange = preview;
   $("#testSound").onclick = preview;
   if (!canNotify) $("#notifyRow").hidden = true;
+  if (!canWake) $("#awakeRow").hidden = true;
   $("#setNotify").onchange = e => {
     if (!e.target.checked || Notification.permission === "granted") return;
     Notification.requestPermission().then(p => {
@@ -331,10 +353,12 @@
       interval:n("#setInterval",1,12,4),
       autoBreak:$("#setAutoBreak").checked, autoFocus:$("#setAutoFocus").checked, autoCheck:$("#setAutoCheck").checked,
       sound:$("#setSound").value, volume:Math.min(100, Math.max(0, parseInt($("#setVolume").value) || 0)), repeat:n("#setRepeat",1,10,1),
-      notify:$("#setNotify").checked
+      notify:$("#setNotify").checked,
+      awake:$("#setAwake").checked
     };
     store.set("ft-settings", settings);
     dlg.close();
+    settings.awake ? holdAwake() : releaseAwake();
     if (!running && settings[mode] !== old){ total = remaining = settings[mode] * 60; }
     renderTasks();
   };

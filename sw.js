@@ -1,5 +1,5 @@
 // Bump when any cached file changes so clients pick up the new version.
-const CACHE = "mimic-v2";
+const CACHE = "mimic-v3";
 
 // Relative to the worker's location, so the app works from a GitHub Pages
 // project path (/mimic/) as well as from a domain root.
