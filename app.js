@@ -5,14 +5,14 @@
     set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
   };
 
-  const defaults = { focus:25, short:5, long:15, interval:4, autoBreak:false, autoFocus:false, autoCheck:false, sound:"chime", volume:70, repeat:1 };
+  const defaults = { focus:25, short:5, long:15, interval:4, autoBreak:false, autoFocus:false, autoCheck:false, sound:"chime", volume:70, repeat:1, notify:false };
   let settings = Object.assign({}, defaults, store.get("ft-settings", {}));
   let tasks = store.get("ft-tasks", []);
   let activeId = store.get("ft-active", null);
 
   let mode = "focus", round = 1, focusDone = 0;
   let remaining = settings.focus * 60, total = remaining;
-  let running = false, endAt = 0, tick = null;
+  let running = false, endAt = 0, tick = null, wake = null;
   let editingId = null; // null none, "new" new task, or task id
 
   const labels = { focus:"Time to focus!", short:"Time for a break!", long:"Time for a long break!" };
@@ -47,12 +47,16 @@
     running = true;
     endAt = Date.now() + remaining * 1000;
     tick = setInterval(step, 250);
+    // Hidden tabs throttle repeating timers to as little as once a minute,
+    // but a single timeout still fires on time, so the round ends promptly.
+    wake = setTimeout(step, remaining * 1000);
     click();
     renderTimer();
   }
   function stop(){
     running = false;
     clearInterval(tick); tick = null;
+    clearTimeout(wake); wake = null;
     renderTimer();
   }
   function step(){
@@ -64,6 +68,7 @@
   function finish(natural){
     stop();
     if (natural) chime();
+    const ended = mode;
     if (mode === "focus"){
       focusDone++;
       const t = activeTask();
@@ -78,6 +83,7 @@
     } else {
       setMode("focus", settings.autoFocus);
     }
+    if (natural) notify(ended);
     renderTasks();
   }
 
@@ -129,6 +135,20 @@
     for (let i = 0; i < times; i++) a.play(i * (a.len + .3), v);
   }
   function chime(){ alarm(settings.sound, settings.repeat); }
+
+  /* notifications */
+  const canNotify = "Notification" in window;
+  function notify(ended){
+    if (!settings.notify || !canNotify || Notification.permission !== "granted") return;
+    const t = activeTask();
+    const title = ended === "focus" ? "Pomodoro done" : "Break over";
+    const body = mode === "focus" && t ? "Next up: " + t.title : labels[mode];
+    const opts = { body, tag:"mimic", renotify:true, icon:"icons/icon-192.png" };
+    // Android Chrome only allows notifications shown through the service worker
+    (navigator.serviceWorker ? navigator.serviceWorker.getRegistration() : Promise.resolve())
+      .then(reg => reg ? reg.showNotification(title, opts) : new Notification(title, opts))
+      .catch(() => {});
+  }
 
   /* ---------- tasks ---------- */
   const uid = () => Math.random().toString(36).slice(2,10);
@@ -276,6 +296,8 @@
     $("#setFocus").value = settings.focus; $("#setShort").value = settings.short; $("#setLong").value = settings.long;
     $("#setInterval").value = settings.interval;
     $("#setAutoBreak").checked = settings.autoBreak; $("#setAutoFocus").checked = settings.autoFocus; $("#setAutoCheck").checked = settings.autoCheck;
+    $("#setNotify").checked = settings.notify && canNotify && Notification.permission === "granted";
+    $("#notifyHint").hidden = true;
     $("#setSound").value = settings.sound; $("#setVolume").value = settings.volume; $("#setRepeat").value = settings.repeat;
     dlg.showModal();
   };
@@ -291,6 +313,16 @@
   $("#setSound").onchange = preview;
   $("#setVolume").onchange = preview;
   $("#testSound").onclick = preview;
+  if (!canNotify) $("#notifyRow").hidden = true;
+  $("#setNotify").onchange = e => {
+    if (!e.target.checked || Notification.permission === "granted") return;
+    Notification.requestPermission().then(p => {
+      if (p === "granted") return;
+      e.target.checked = false;
+      $("#notifyHint").textContent = p === "denied" ? "Blocked in your browser's site settings" : "Allow notifications to turn this on";
+      $("#notifyHint").hidden = false;
+    });
+  };
   $("#saveSettings").onclick = () => {
     const n = (id, lo, hi, d) => Math.min(hi, Math.max(lo, parseInt($(id).value) || d));
     const old = settings[mode];
@@ -298,7 +330,8 @@
       focus:n("#setFocus",1,180,25), short:n("#setShort",1,60,5), long:n("#setLong",1,120,15),
       interval:n("#setInterval",1,12,4),
       autoBreak:$("#setAutoBreak").checked, autoFocus:$("#setAutoFocus").checked, autoCheck:$("#setAutoCheck").checked,
-      sound:$("#setSound").value, volume:Math.min(100, Math.max(0, parseInt($("#setVolume").value) || 0)), repeat:n("#setRepeat",1,10,1)
+      sound:$("#setSound").value, volume:Math.min(100, Math.max(0, parseInt($("#setVolume").value) || 0)), repeat:n("#setRepeat",1,10,1),
+      notify:$("#setNotify").checked
     };
     store.set("ft-settings", settings);
     dlg.close();

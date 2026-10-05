@@ -138,6 +138,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .sheet-body h3.gap{margin-top:1.5rem}
 .pair{display:flex;align-items:center;gap:.25rem}
 .num.select{width:auto;padding-right:.4rem}
+.hint{display:block;font-size:.8rem;font-weight:400;color:var(--card-soft);margin-top:.2rem}
+.hint[hidden]{display:none}
 .range{width:9rem;accent-color:var(--short)}
 .sheet-foot{padding:.85rem 1.25rem;background:var(--field);display:flex;justify-content:flex-end}
 
