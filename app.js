@@ -34,6 +34,8 @@
     stop();
     mode = m;
     document.body.dataset.mode = m;
+    // Tint the installed app's title bar to match the mode colour
+    $('meta[name="theme-color"]').content = getComputedStyle(document.body).getPropertyValue("--bg").trim();
     document.querySelectorAll(".mode").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === m));
     total = remaining = settings[m] * 60;
     renderStatus(); renderTimer();
