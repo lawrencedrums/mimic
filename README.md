@@ -11,6 +11,7 @@ day over and over. Focus, break, repeat. Live, die, repeat.
 - Long break after a set number of pomodoros
 - Optional auto-start for breaks and pomodoros
 - Tasks with pomodoro estimates, notes and an estimated finish time
+- Reorder tasks by dragging the grip handle, or with Alt+↑/↓
 - Alarm sounds (Chime, Bell, Digital, Kitchen) with volume and repeat
 - Browser notifications when a round ends
 - Keeps the screen awake while the timer runs
