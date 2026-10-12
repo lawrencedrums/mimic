@@ -44,9 +44,25 @@ header{display:flex;align-items:center;justify-content:space-between;padding:1re
 .progress span{display:block;height:100%;background:#fff;width:0;transition:width .4s linear}
 
 .timer{background:var(--panel);border-radius:.6rem;padding:1.25rem 1rem 1.75rem;text-align:center}
-.modes{display:flex;justify-content:center;gap:.25rem;flex-wrap:wrap}
+.bar{display:flex;align-items:center;gap:.25rem}
+.swap{background:none;border:0;border-radius:.35rem;padding:.35rem;flex:none;opacity:.8}
+.swap:hover,.swap[aria-expanded="true"]{opacity:1;background:rgba(0,0,0,.18)}
+.swap svg{width:1.2rem;height:1.2rem;display:block}
+.bar::after{content:"";width:1.9rem;flex:none} /* balances .swap so the bar stays centred */
+.modes{flex:1;display:flex;justify-content:center;gap:.25rem;flex-wrap:wrap}
+.modes[hidden]{display:none}
 .mode{background:none;border:0;border-radius:.35rem;padding:.35rem .75rem;font-size:.95rem}
 .mode[aria-pressed="true"]{background:rgba(0,0,0,.18);font-weight:700}
+@media (max-width:400px){
+  .timer{padding-left:.5rem;padding-right:.5rem}
+  .bar::after{display:none}
+  .modes{gap:0}
+  .mode{padding:.35rem .5rem;font-size:.9rem}
+}
+@media (max-width:350px){
+  .swap{padding:.35rem .2rem}
+  .mode{padding:.35rem .35rem;font-size:.85rem}
+}
 .clock{
   font-family:"Bricolage Grotesque",sans-serif;font-weight:800;
   font-size:clamp(5rem,26vw,7.5rem);line-height:1;letter-spacing:-.03em;
@@ -135,6 +151,11 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .sheet-head h2{margin:0;font-size:1.05rem}
 .sheet-body{padding:1rem 1.25rem}
 .sheet-body h3{margin:.25rem 0 .75rem;font-size:.95rem;color:var(--card-soft);font-weight:600}
+.len-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.75rem}
+.len-head h3{margin:0}
+.seg{display:flex;background:var(--field);border-radius:.4rem;padding:.2rem}
+.seg button{background:none;border:0;border-radius:.3rem;padding:.3rem .65rem;font-size:.85rem;font-weight:600;color:var(--card-soft)}
+.seg button[aria-pressed="true"]{background:var(--sheet);color:var(--card-ink);box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .durations{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.25rem}
 .durations label{font-size:.85rem;color:var(--card-soft);display:block}
 .durations .num{width:100%;margin-top:.3rem}

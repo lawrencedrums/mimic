@@ -28,10 +28,19 @@
   <div class="progress" aria-hidden="true"><span id="bar"></span></div>
 
   <section class="timer" aria-label="Timer">
-    <div class="modes" role="group" aria-label="Timer mode">
-      <button class="mode" data-mode="focus" aria-pressed="true">Pomodoro</button>
-      <button class="mode" data-mode="short" aria-pressed="false">Short break</button>
-      <button class="mode" data-mode="long" aria-pressed="false">Long break</button>
+    <div class="bar">
+      <button class="swap" id="swap" aria-label="Choose preset" aria-expanded="false" aria-controls="presets">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4L3 8l4 4M3 8h14M17 12l4 4-4 4M21 16H7"/></svg>
+      </button>
+      <div class="modes" id="modes" role="group" aria-label="Timer mode">
+        <button class="mode" data-mode="focus" aria-pressed="true">Pomodoro</button>
+        <button class="mode" data-mode="short" aria-pressed="false">Short break</button>
+        <button class="mode" data-mode="long" aria-pressed="false">Long break</button>
+      </div>
+      <div class="modes" id="presets" role="group" aria-label="Preset" hidden>
+        <button class="mode" data-preset="a" aria-pressed="true"></button>
+        <button class="mode" data-preset="b" aria-pressed="false"></button>
+      </div>
     </div>
     <div class="clock" id="clock" role="timer" aria-live="off">25:00</div>
     <div class="controls">
@@ -72,7 +81,13 @@
     <button class="btn plain" id="closeSettings" aria-label="Close">✕</button>
   </div>
   <div class="sheet-body">
-    <h3>Length in minutes</h3>
+    <div class="len-head">
+      <h3>Length in minutes</h3>
+      <div class="seg" role="group" aria-label="Preset to edit">
+        <button type="button" data-edit="a" aria-pressed="true"></button>
+        <button type="button" data-edit="b" aria-pressed="false"></button>
+      </div>
+    </div>
     <div class="durations">
       <label>Pomodoro<input class="num" type="number" min="1" max="180" id="setFocus"></label>
       <label>Short break<input class="num" type="number" min="1" max="60" id="setShort"></label>
@@ -81,7 +96,6 @@
     <div class="row"><span>Auto-start breaks</span><label class="switch"><input type="checkbox" id="setAutoBreak" aria-label="Auto-start breaks"><span></span></label></div>
     <div class="row"><span>Auto-start pomodoros</span><label class="switch"><input type="checkbox" id="setAutoFocus" aria-label="Auto-start pomodoros"><span></span></label></div>
     <div class="row"><span>Auto-check finished tasks</span><label class="switch"><input type="checkbox" id="setAutoCheck" aria-label="Auto-check finished tasks"><span></span></label></div>
-    <div class="row"><span>Long break every</span><span><input class="num" type="number" min="1" max="12" id="setInterval" aria-label="Pomodoros before a long break"> pomos</span></div>
     <div class="row" id="awakeRow"><span>Keep screen awake while running</span><label class="switch"><input type="checkbox" id="setAwake" aria-label="Keep screen awake while running"><span></span></label></div>
     <h3 class="gap">Alarm</h3>
     <div class="row"><label for="setSound">Sound</label><span class="pair">

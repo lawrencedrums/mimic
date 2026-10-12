@@ -7,8 +7,11 @@ day over and over. Focus, break, repeat. Live, die, repeat.
 
 ## Features
 
-- Pomodoro, short break and long break timers with adjustable lengths
-- Long break after a set number of pomodoros
+- Pomodoro, short break and long break timers
+- Two presets (25 · 5 and 45 · 15 by default), switched from the timer
+  with the ⇄ button, each with its own adjustable lengths
+- Pomodoros alternate with short breaks; take a long break whenever you
+  pick one
 - Optional auto-start for breaks and pomodoros
 - Tasks with pomodoro estimates, notes and an estimated finish time
 - Reorder tasks by dragging the grip handle, or with Alt+↑/↓
