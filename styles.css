@@ -111,6 +111,11 @@ ul{list-style:none;margin:0;padding:0}
 .editor label{display:block;font-weight:700;margin:1.1rem 0 .5rem;font-size:.95rem}
 .est{display:flex;align-items:center;gap:.5rem}
 .num{width:4.5rem;background:var(--field);border:0;border-radius:.35rem;padding:.55rem .6rem;font:inherit;font-weight:700;color:var(--card-ink)}
+.stepper{display:inline-flex;align-items:center;background:var(--field);border-radius:.35rem}
+.stepper .num{width:2.75rem;padding:.55rem 0;text-align:center;background:none;-moz-appearance:textfield;appearance:textfield}
+.stepper .num::-webkit-inner-spin-button,.stepper .num::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.step{width:2.75rem;height:2.75rem;border:0;border-radius:.35rem;background:none;color:var(--card-ink);font:inherit;font-size:1.4rem;font-weight:700;line-height:1;cursor:pointer;touch-action:manipulation}
+.step:hover{background:var(--line)}
 textarea{width:100%;min-height:4.5rem;background:var(--field);border:0;border-radius:.35rem;padding:.6rem;font:inherit;color:var(--card-ink);resize:vertical}
 .linky{background:none;border:0;padding:0;text-decoration:underline;color:var(--card-soft);font-weight:600;margin-top:1rem}
 .editor footer{background:var(--field);padding:.75rem 1.1rem;display:flex;gap:.5rem;align-items:center}
