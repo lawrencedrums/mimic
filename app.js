@@ -184,6 +184,12 @@
   const esc = s => s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const tick_svg = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
+  const stepper = (id, val, min, what) => `<span class="stepper">
+    <button type="button" class="step" data-for="${id}" data-dir="-1" aria-label="Decrease ${what}">&minus;</button>
+    <input class="num" type="number" min="${min}" id="${id}" value="${val}" aria-label="${what[0].toUpperCase() + what.slice(1)}">
+    <button type="button" class="step" data-for="${id}" data-dir="1" aria-label="Increase ${what}">+</button>
+  </span>`;
+
   function editorHTML(t){
     const isNew = !t;
     t = t || { title:"", est:1, act:0, note:"" };
@@ -193,8 +199,8 @@
         ${isNew ? "" : `<label for="edAct">Pomodoros done / estimated</label>`}
         ${isNew ? `<label for="edEst">Estimated pomodoros</label>` : ""}
         <div class="est">
-          ${isNew ? "" : `<input class="num" type="number" min="0" id="edAct" value="${t.act}"> <span>/</span>`}
-          <input class="num" type="number" min="1" id="edEst" value="${t.est}" aria-label="Estimated pomodoros">
+          ${isNew ? "" : `${stepper("edAct", t.act, 0, "pomodoros done")} <span>/</span>`}
+          ${stepper("edEst", t.est, 1, "estimated pomodoros")}
         </div>
         <div id="noteWrap">${t.note ? `<label for="edNote">Note</label><textarea id="edNote">${esc(t.note)}</textarea>` : `<button class="linky" id="addNote" type="button">+ Add note</button>`}</div>
       </div>
@@ -215,6 +221,10 @@
     title.onkeydown = e => { if (e.key === "Enter" && title.value.trim()) commit(); if (e.key === "Escape") closeEditor(); };
     const an = $("#addNote");
     if (an) an.onclick = () => { $("#noteWrap").innerHTML = `<label for="edNote">Note</label><textarea id="edNote"></textarea>`; $("#edNote").focus(); };
+    document.querySelectorAll("#editor .step").forEach(b => b.onclick = () => {
+      const input = $("#" + b.dataset.for);
+      if (b.dataset.dir > 0) input.stepUp(); else input.stepDown();
+    });
     $("#edCancel").onclick = closeEditor;
     save.onclick = commit;
     const del = $("#edDelete");
