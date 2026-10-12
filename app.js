@@ -5,15 +5,32 @@
     set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
   };
 
-  const defaults = { focus:25, short:5, long:15, interval:4, autoBreak:false, autoFocus:false, autoCheck:false, sound:"chime", volume:70, repeat:1, notify:false, awake:true };
-  let settings = Object.assign({}, defaults, store.get("ft-settings", {}));
+  const presetDefaults = { a:{ focus:25, short:5, long:15 }, b:{ focus:45, short:15, long:30 } };
+  const defaults = { preset:"a", autoBreak:false, autoFocus:false, autoCheck:false, sound:"chime", volume:70, repeat:1, notify:false, awake:true };
+  let settings = loadSettings();
   let tasks = store.get("ft-tasks", []);
   let activeId = store.get("ft-active", null);
 
   let mode = "focus", round = 1, focusDone = 0;
-  let remaining = settings.focus * 60, total = remaining;
+  let remaining = len("focus") * 60, total = remaining;
   let running = false, endAt = 0, tick = null, wake = null;
   let editingId = null; // null none, "new" new task, or task id
+
+  function loadSettings(){
+    const saved = store.get("ft-settings", {});
+    const s = Object.assign({}, defaults, saved);
+    // Lengths saved before presets existed become the first preset
+    const a = saved.focus ? { focus:saved.focus, short:saved.short, long:saved.long } : {};
+    s.presets = {
+      a: Object.assign({}, presetDefaults.a, a, saved.presets && saved.presets.a),
+      b: Object.assign({}, presetDefaults.b, saved.presets && saved.presets.b)
+    };
+    delete s.focus; delete s.short; delete s.long; delete s.interval;
+    return s;
+  }
+  // Length in minutes of a mode in the current preset
+  function len(m){ return settings.presets[settings.preset][m]; }
+  const presetLabel = p => settings.presets[p].focus + " · " + settings.presets[p].short;
 
   const labels = { focus:"Time to focus!", short:"Time for a break!", long:"Time for a long break!" };
 
@@ -36,8 +53,8 @@
     document.body.dataset.mode = m;
     // Tint the installed app's title bar to match the mode colour
     $('meta[name="theme-color"]').content = getComputedStyle(document.body).getPropertyValue("--bg").trim();
-    document.querySelectorAll(".mode").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === m));
-    total = remaining = settings[m] * 60;
+    document.querySelectorAll("#modes .mode").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === m));
+    total = remaining = len(m) * 60;
     renderStatus(); renderTimer();
     if (autostart) start();
   }
@@ -98,8 +115,7 @@
         saveTasks();
       }
       round++;
-      const next = focusDone % settings.interval === 0 ? "long" : "short";
-      setMode(next, settings.autoBreak);
+      setMode("short", settings.autoBreak);
     } else {
       setMode("focus", settings.autoFocus);
     }
@@ -111,10 +127,34 @@
   $("#skip").onclick = () => {
     if (confirm("End this round early? The current round won't count fully.")) finish(false);
   };
-  document.querySelectorAll(".mode").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#modes .mode").forEach(b => b.onclick = () => {
     if (b.dataset.mode === mode) return;
     if (running && !confirm("The timer is still running. Switch anyway?")) return;
     setMode(b.dataset.mode, false);
+  });
+
+  /* presets share the mode bar's line; the swap button flips between them */
+  function showPresets(on){
+    $("#modes").hidden = on; $("#presets").hidden = !on;
+    $("#swap").setAttribute("aria-expanded", on);
+    $("#swap").setAttribute("aria-label", on ? "Back to timer modes" : "Choose preset");
+  }
+  function renderPresets(){
+    document.querySelectorAll("[data-preset]").forEach(b => {
+      b.textContent = presetLabel(b.dataset.preset);
+      b.setAttribute("aria-pressed", b.dataset.preset === settings.preset);
+    });
+  }
+  $("#swap").onclick = () => showPresets($("#modes").hidden === false);
+  document.querySelectorAll("[data-preset]").forEach(b => b.onclick = () => {
+    showPresets(false);
+    if (b.dataset.preset === settings.preset) return;
+    settings.preset = b.dataset.preset;
+    store.set("ft-settings", settings);
+    renderPresets();
+    // A running round keeps its length; the new preset starts next round
+    if (!running){ total = remaining = len(mode) * 60; renderTimer(); }
+    renderTasks();
   });
   document.addEventListener("keydown", e => {
     if (e.code === "Space" && !e.target.closest("input,textarea,button,dialog")){
@@ -382,8 +422,7 @@
     const act = tasks.reduce((a,t) => a + Math.min(t.act, t.est), 0);
     const left = open.reduce((a,t) => a + Math.max(0, t.est - t.act), 0);
     // remaining focus time + breaks between them
-    let mins = left * settings.focus;
-    for (let i = 1; i < left; i++) mins += ((focusDone + i) % settings.interval === 0) ? settings.long : settings.short;
+    const mins = left * len("focus") + Math.max(0, left - 1) * len("short");
     const fin = new Date(Date.now() + mins * 60000);
     const hm = fin.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
     const h = (mins / 60).toFixed(1);
@@ -408,8 +447,8 @@
   /* ---------- settings ---------- */
   const dlg = $("#settings");
   $("#openSettings").onclick = () => {
-    $("#setFocus").value = settings.focus; $("#setShort").value = settings.short; $("#setLong").value = settings.long;
-    $("#setInterval").value = settings.interval;
+    draft = JSON.parse(JSON.stringify(settings.presets));
+    editPreset(settings.preset);
     $("#setAutoBreak").checked = settings.autoBreak; $("#setAutoFocus").checked = settings.autoFocus; $("#setAutoCheck").checked = settings.autoCheck;
     $("#setNotify").checked = settings.notify && canNotify && Notification.permission === "granted";
     $("#notifyHint").hidden = true;
@@ -417,6 +456,22 @@
     $("#setSound").value = settings.sound; $("#setVolume").value = settings.volume; $("#setRepeat").value = settings.repeat;
     dlg.showModal();
   };
+  // Lengths are edited per preset; unsaved edits for both live in `draft`
+  let draft, editing;
+  const lenFields = { focus:"#setFocus", short:"#setShort", long:"#setLong" };
+  const lenLimits = { focus:180, short:60, long:120 };
+  function readLengths(){
+    for (const m in lenFields) draft[editing][m] = Math.min(lenLimits[m], Math.max(1, parseInt($(lenFields[m]).value) || draft[editing][m]));
+  }
+  function editPreset(p){
+    editing = p;
+    for (const m in lenFields) $(lenFields[m]).value = draft[p][m];
+    document.querySelectorAll("[data-edit]").forEach(b => {
+      b.textContent = draft[b.dataset.edit].focus + " · " + draft[b.dataset.edit].short;
+      b.setAttribute("aria-pressed", b.dataset.edit === p);
+    });
+  }
+  document.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => { readLengths(); editPreset(b.dataset.edit); });
   $("#closeSettings").onclick = () => dlg.close();
   dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
   // Preview with the unsaved values so you can audition before saving
@@ -442,10 +497,10 @@
   };
   $("#saveSettings").onclick = () => {
     const n = (id, lo, hi, d) => Math.min(hi, Math.max(lo, parseInt($(id).value) || d));
-    const old = settings[mode];
+    const old = len(mode);
+    readLengths();
     settings = {
-      focus:n("#setFocus",1,180,25), short:n("#setShort",1,60,5), long:n("#setLong",1,120,15),
-      interval:n("#setInterval",1,12,4),
+      presets:draft, preset:settings.preset,
       autoBreak:$("#setAutoBreak").checked, autoFocus:$("#setAutoFocus").checked, autoCheck:$("#setAutoCheck").checked,
       sound:$("#setSound").value, volume:Math.min(100, Math.max(0, parseInt($("#setVolume").value) || 0)), repeat:n("#setRepeat",1,10,1),
       notify:$("#setNotify").checked,
@@ -454,10 +509,11 @@
     store.set("ft-settings", settings);
     dlg.close();
     settings.awake ? holdAwake() : releaseAwake();
-    if (!running && settings[mode] !== old){ total = remaining = settings[mode] * 60; }
-    renderTasks();
+    if (!running && len(mode) !== old){ total = remaining = len(mode) * 60; renderTimer(); }
+    renderPresets(); renderTasks();
   };
 
+  renderPresets();
   setMode("focus", false);
   renderTasks();
 })();
