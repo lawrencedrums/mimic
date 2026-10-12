@@ -80,6 +80,12 @@ ul{list-style:none;margin:0;padding:0}
   border-left:6px solid transparent;cursor:pointer;
 }
 .task.active{border-left-color:var(--card-ink)}
+.grip{flex:none;width:1.1rem;margin:-.5rem -.4rem -.5rem -.5rem;padding:.5rem 0;color:var(--card-soft);opacity:.55;cursor:grab;touch-action:none;display:grid;place-items:center}
+.grip svg{width:1.1rem;height:1.1rem}
+.task:hover .grip,.grip:active{opacity:1}
+.sorting>li{transition:transform .15s ease}
+.sorting>li.dragging{transition:none;position:relative;z-index:2;box-shadow:0 10px 24px rgba(0,0,0,.25);cursor:grabbing}
+.sorting,.sorting *{cursor:grabbing!important;user-select:none;-webkit-user-select:none}
 .check{width:1.6rem;height:1.6rem;border-radius:50%;border:0;background:var(--line);flex:none;display:grid;place-items:center;padding:0}
 .check svg{width:.9rem;height:.9rem;stroke:#fff;opacity:.9}
 .task.done .check{background:var(--bg)}

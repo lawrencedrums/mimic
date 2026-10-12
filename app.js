@@ -182,6 +182,7 @@
   }
 
   const esc = s => s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const grip_svg = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
   const tick_svg = '<svg viewBox="0 0 24 24" fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 
   function editorHTML(t){
@@ -250,7 +251,8 @@
     const list = $("#list");
     list.innerHTML = tasks.map(t => {
       if (t.id === editingId) return `<li>${editorHTML(t)}</li>`;
-      return `<li class="task${t.id === activeId ? " active" : ""}${t.done ? " done" : ""}" data-id="${t.id}" tabindex="0">
+      return `<li class="task${t.id === activeId ? " active" : ""}${t.done ? " done" : ""}" data-id="${t.id}" tabindex="0" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown">
+        <span class="grip" data-grip title="Drag to reorder" aria-hidden="true">${grip_svg}</span>
         <button class="check" data-check aria-label="${t.done ? "Mark as not done" : "Mark as done"}">${tick_svg}</button>
         <span class="title">${esc(t.title)}${t.note ? `<span class="note">${esc(t.note)}</span>` : ""}</span>
         <span class="pomos"><b>${t.act}</b>/${t.est}</span>
@@ -267,7 +269,7 @@
   }
 
   $("#list").addEventListener("click", e => {
-    const li = e.target.closest(".task"); if (!li) return;
+    const li = e.target.closest(".task"); if (!li || e.target.closest("[data-grip]")) return;
     const t = tasks.find(x => x.id === li.dataset.id); if (!t) return;
     if (e.target.closest("[data-check]")){ t.done = !t.done; }
     else if (e.target.closest("[data-edit]")){ editingId = t.id; }
@@ -277,7 +279,90 @@
   $("#list").addEventListener("keydown", e => {
     const li = e.target.closest(".task");
     if (li && e.target === li && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); activeId = li.dataset.id; saveTasks(); renderTasks(); }
+    // Alt+Up/Down moves the focused task
+    if (li && e.target === li && e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")){
+      e.preventDefault();
+      const i = tasks.findIndex(t => t.id === li.dataset.id), j = i + (e.key === "ArrowUp" ? -1 : 1);
+      if (i < 0 || j < 0 || j >= tasks.length) return;
+      tasks.splice(j, 0, tasks.splice(i, 1)[0]);
+      saveTasks(); renderTasks();
+      const moved = $(`#list .task[data-id="${li.dataset.id}"]`); if (moved) moved.focus();
+    }
   });
+
+  /* drag to reorder */
+  // Pointer events rather than HTML5 drag and drop, which touch screens
+  // don't support well. While dragging, the picked-up task follows the
+  // pointer and the others slide aside; on release the node is moved and
+  // the task order is read back from the list.
+  let drag = null;
+  $("#list").addEventListener("pointerdown", e => {
+    const grip = e.target.closest("[data-grip]");
+    if (!grip || drag || (e.pointerType === "mouse" && e.button !== 0)) return;
+    e.preventDefault();
+    const list = $("#list"), li = grip.closest(".task");
+    const items = [...list.children];
+    const rects = items.map(el => el.getBoundingClientRect());
+    const from = items.indexOf(li);
+    drag = {
+      li, items, rects, from, to:from, id:e.pointerId,
+      startY:e.clientY + scrollY, y:e.clientY, raf:0,
+      size:rects[from].height + parseFloat(getComputedStyle(li).marginBottom)
+    };
+    grip.setPointerCapture(e.pointerId);
+    list.classList.add("sorting");
+    li.classList.add("dragging");
+    drag.raf = requestAnimationFrame(autoScroll);
+  });
+  $("#list").addEventListener("pointermove", e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    drag.y = e.clientY;
+    layoutDrag();
+  });
+  $("#list").addEventListener("pointerup", e => endDrag(e, true));
+  $("#list").addEventListener("pointercancel", e => endDrag(e, false));
+
+  function layoutDrag(){
+    const { li, items, rects, from, size } = drag;
+    const dy = drag.y + scrollY - drag.startY;
+    li.style.transform = `translateY(${dy}px)`;
+    const mid = rects[from].top + rects[from].height / 2 + dy;
+    let to = 0;
+    rects.forEach((r, i) => { if (i !== from && r.top + r.height / 2 < mid) to++; });
+    drag.to = to;
+    items.forEach((el, i) => {
+      if (el === li) return;
+      const shift = from < to && i > from && i <= to ? -size : to < from && i >= to && i < from ? size : 0;
+      el.style.transform = shift ? `translateY(${shift}px)` : "";
+    });
+  }
+
+  // Scroll the page while the pointer is held near the top or bottom edge
+  function autoScroll(){
+    if (!drag) return;
+    const edge = 60, h = innerHeight;
+    const v = drag.y < edge ? -(edge - drag.y) / 4 : drag.y > h - edge ? (drag.y - (h - edge)) / 4 : 0;
+    if (v){ scrollBy(0, v); layoutDrag(); }
+    drag.raf = requestAnimationFrame(autoScroll);
+  }
+
+  function endDrag(e, drop){
+    if (!drag || e.pointerId !== drag.id) return;
+    const { li, items, from, to } = drag;
+    cancelAnimationFrame(drag.raf);
+    drag = null;
+    const list = $("#list");
+    list.classList.remove("sorting");
+    li.classList.remove("dragging");
+    items.forEach(el => el.style.transform = "");
+    if (!drop || to === from) return;
+    const rest = items.filter(el => el !== li);
+    list.insertBefore(li, rest[to] || null);
+    // The open editor's row has no data-id; it stands for the task being edited
+    const order = [...list.children].map(el => el.dataset.id || editingId);
+    tasks.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    saveTasks();
+  }
 
   function renderSummary(){
     const open = tasks.filter(t => !t.done);
